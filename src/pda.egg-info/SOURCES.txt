@@ -1,7 +1,9 @@
 README.md
 setup.py
 src/pda/__init__.py
-src/pda/task01.py
+src/pda/task1.py
+src/pda/task2.py
+src/pda/task3.py
 src/pda.egg-info/PKG-INFO
 src/pda.egg-info/SOURCES.txt
 src/pda.egg-info/dependency_links.txt
