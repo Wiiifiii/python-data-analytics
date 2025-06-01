@@ -1,11 +1,4 @@
 # task6.py
-# --------
-# 1) Fetch “Kokonaishedelmällisyysluku” (Total fertility rate) for all years 1776–2024
-#    via PX-Web JSON-stat2 from:
-#      https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/synt/statfin_synt_pxt_12dt.px
-# 2) Convert JSON-stat2 into a pandas DataFrame.
-# 3) Print the DataFrame (top 10 rows).
-# 4) Draw three different chart types (line, bar, pie) and save them.
 
 import requests
 import pandas as pd
@@ -13,6 +6,14 @@ import matplotlib.pyplot as plt
 import sys
 import json
 
+'''
+1) Fetch “Kokonaishedelmällisyysluku” (Total fertility rate) for all years 1776–2024
+   via PX-Web JSON-stat2 from:
+     https://pxdata.stat.fi/PxWeb/api/v1/fi/StatFin/synt/statfin_synt_pxt_12dt.px
+2) Convert JSON-stat2 into a pandas DataFrame.
+3) Print the DataFrame (top 10 rows).
+4) Draw three different chart types (line, bar, pie) and save them.
+'''
 
 # -----------------------------------------------
 # 1) WORKING PX-WEB URL
@@ -22,18 +23,18 @@ PXWEB_URL = (
     "synt/statfin_synt_pxt_12dt.px"
 )
 
-# -----------------------------------------------
-# 2) COPY-PASTE the “Vuosi” index EXACTLY from metadata
-#    This array runs from 1776 through 2024.
-# -----------------------------------------------
+'''
+2) COPY-PASTE the “Vuosi” index EXACTLY from metadata.
+   This array runs from 1776 through 2024.
+'''
 all_years = [
     "1776","1777","1778","1779","1780","1781","1782","1783","1784","1785","1786","1787","1788","1789","1790","1791","1792","1793","1794","1795","1796","1797","1798","1799","1800","1801","1802","1803","1804","1805","1806","1807","1808","1809","1810","1811","1812","1813","1814","1815","1816","1817","1818","1819","1820","1821","1822","1823","1824","1825","1826","1827","1828","1829","1830","1831","1832","1833","1834","1835","1836","1837","1838","1839","1840","1841","1842","1843","1844","1845","1846","1847","1848","1849","1850","1851","1852","1853","1854","1855","1856","1857","1858","1859","1860","1861","1862","1863","1864","1865","1866","1867","1868","1869","1870","1871","1872","1873","1874","1875","1876","1877","1878","1879","1880","1881","1882","1883","1884","1885","1886","1887","1888","1889","1890","1891","1892","1893","1894","1895","1896","1897","1898","1899","1900","1901","1902","1903","1904","1905","1906","1907","1908","1909","1910","1911","1912","1913","1914","1915","1916","1917","1918","1919","1920","1921","1922","1923","1924","1925","1926","1927","1928","1929","1930","1931","1932","1933","1934","1935","1936","1937","1938","1939","1940","1941","1942","1943","1944","1945","1946","1947","1948","1949","1950","1951","1952","1953","1954","1955","1956","1957","1958","1959","1960","1961","1962","1963","1964","1965","1966","1967","1968","1969","1970","1971","1972","1973","1974","1975","1976","1977","1978","1979","1980","1981","1982","1983","1984","1985","1986","1987","1988","1989","1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024"
 ]
 
-# -----------------------------------------------
-# 3) JSON-stat2 Payload: request all_years & Tiedot = ["tfr"]
-#    (Note the dimension name is now "Tiedot", not "Tieto".)
-# -----------------------------------------------
+'''
+3) JSON-stat2 Payload: request all_years & Tiedot = ["tfr"]
+   (Note the dimension name is now "Tiedot", not "Tieto".)
+'''
 query_payload = {
     "query": [
         {
@@ -44,7 +45,7 @@ query_payload = {
             }
         },
         {
-            "code": "Tiedot",                 # <-- CORRECTED HERE
+            "code": "Tiedot",   # <-- CORRECTED HERE
             "selection": {
                 "filter": "item",
                 "values": ["tfr"]
@@ -63,23 +64,22 @@ def fetch_pxweb_data(url: str, payload: dict) -> pd.DataFrame:
     then parses the JSON-stat2 response into a pandas DataFrame
     with columns ['Year', 'Indicator', 'FertilityRate'].
 
-    If the returned JSON does not contain "dataset", print out the entire JSON/text
-    for debugging and exit.
+    If the returned JSON does not contain "dataset", this function checks
+    whether the JSON itself *is* the dataset (class="dataset"), and proceeds.
+    Otherwise it prints the full JSON/text for debugging and exits.
     """
     try:
         resp = requests.post(url, json=payload, timeout=30)
         resp.raise_for_status()
     except requests.RequestException as e:
-        # HTTP‐level errors (404, 400, etc.) are caught here.
+        # HTTP-level errors (404, 400, etc.) are caught here.
         if hasattr(e, "response") and e.response is not None:
             print("\n=== RESPONSE TEXT ===\n", e.response.text, file=sys.stderr)
         print("ERROR: Failed to fetch data:", e, file=sys.stderr)
         sys.exit(1)
 
-    # Try to parse JSON
     text = resp.text.strip()
 
-    # If the response is empty, that’s not valid JSON-stat2
     if len(text) == 0:
         print("\n=== RESPONSE WAS EMPTY ===\n", file=sys.stderr)
         sys.exit(1)
@@ -91,16 +91,23 @@ def fetch_pxweb_data(url: str, payload: dict) -> pd.DataFrame:
         print("\n=== RESPONSE IS NOT JSON (raw text below) ===\n", text, file=sys.stderr)
         sys.exit(1)
 
-    # If "dataset" is not a key, then it’s not the JSON-stat2 we expect
-    if "dataset" not in json_data:
+    # Case A: Wrapped under "dataset"
+    if "dataset" in json_data:
+        ds = json_data["dataset"]
+
+    # Case B: JSON-stat 2.0 where the top-level object *is* the dataset
+    elif json_data.get("class") == "dataset":
+        ds = json_data
+
+    else:
+        # Not the structure we expected
         print(
-            "\n=== JSON did not contain 'dataset'. Full JSON below: ===\n",
+            "\n=== JSON did not contain 'dataset' nor class='dataset'. Full JSON below: ===\n",
             json.dumps(json_data, ensure_ascii=False, indent=2),
             file=sys.stderr
         )
         sys.exit(1)
 
-    ds = json_data["dataset"]
     dims = ds["dimension"]
 
     # dims.keys() should be {'Vuosi','Tiedot','value'}
@@ -129,14 +136,14 @@ def fetch_pxweb_data(url: str, payload: dict) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    # --------------------------------------------------
-    # 1) Fetch & build DataFrame
-    # --------------------------------------------------
+    '''
+    1) Fetch & build DataFrame
+    '''
     df_fertility = fetch_pxweb_data(PXWEB_URL, query_payload)
 
-    # --------------------------------------------------
-    # 2) Print the DataFrame (top 10 rows)
-    # --------------------------------------------------
+    '''
+    2) Print the DataFrame (top 10 rows)
+    '''
     pd.set_option("display.max_rows", 10)
     pd.set_option("display.max_columns", None)
     print("\n=== Sample of the Fertility DataFrame (Top 10 rows) ===\n")
@@ -144,9 +151,9 @@ if __name__ == "__main__":
     print("\n(total rows returned = {})\n".format(len(df_fertility)))
     # You should see 249 rows (one for each year 1776…2024), all with Indicator='tfr'.
 
-    # --------------------------------------------------
-    # 3) Draw three different chart types
-    # --------------------------------------------------
+    '''
+    3) Draw three different chart types
+    '''
 
     # —— a) LINE PLOT: Fertility Rate over Time (1776–2024) ——
     df_line = df_fertility.copy()
@@ -183,7 +190,7 @@ if __name__ == "__main__":
     plt.savefig("fertility_rate_by_year_bar.png")
     plt.show()
 
-    # —— c) PIE CHART: Share of Total Fertility (split into three centuries) ——
+    # —— c) PIE CHART: Share of Total Fertility (split into four century buckets) ——
     buckets = {
         "18th Century (1776–1799)": [str(y) for y in range(1776, 1800)],
         "19th Century (1800–1899)": [str(y) for y in range(1800, 1900)],
